@@ -1,0 +1,23 @@
+{
+	"required": true,
+	"package": "com.xapc.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"mixins": [
+      "JumpRemoveInertia",
+      "SpeedTrackerMixin",
+      "NoHurtDelayMixin",
+      "SprintRemove",
+      "JumpDelayMixin"
+	],
+    "client": [
+      "client.SprintRemove",
+      "client.OptionsMixin",
+      "client.KeyMappingMixin"
+    ],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

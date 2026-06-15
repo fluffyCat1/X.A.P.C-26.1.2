@@ -1,0 +1,9 @@
+{
+  "model": {
+    "type": "minecraft:special",
+    "base": "xapc:item/shootgun4",
+    "model": {
+      "type": "geckolib:geckolib"
+    }
+  }
+}

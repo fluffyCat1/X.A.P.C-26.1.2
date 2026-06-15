@@ -1,0 +1,57 @@
+{
+	"format_version": "1.8.0",
+	"animations": {
+		"idle": {
+			"animation_length": 1,
+			"bones": {
+				"right_arm": {
+					"rotation": {
+						"0.0": {
+							"vector": [-68.0604, -11.7312, -26.6066]
+						},
+						"0.5": {
+							"vector": [-63.0604, -11.7312, -26.6066]
+						},
+						"1.0": {
+							"vector": [-68.0604, -11.7312, -26.6066]
+						}
+					}
+				},
+				"left_arm": {
+					"rotation": {
+						"0.0": {
+							"vector": [-92.8117, 9.2318, -3.8602]
+						},
+						"0.5": {
+							"vector": [-90.3117, 9.2318, -3.8602]
+						},
+						"1.0": {
+							"vector": [-92.8117, 9.2318, -3.8602]
+						}
+					}
+				},
+				"gun": {
+					"position": {
+						"0.0": {
+							"vector": [8, 12, -24]
+						},
+						"1.0": {
+							"vector": [8, 12, -24]
+						}
+					}
+				}
+			}
+		}
+	},
+    "model": {
+      "bone_name": {
+        "pivot": [0, 12, 0]
+      }
+    },
+    "parents": {
+      "right_arm": "bone_name",
+      "left_arm": "bone_name",
+      "torso": "bone_name",
+      "head": "bone_name"
+    }
+}
