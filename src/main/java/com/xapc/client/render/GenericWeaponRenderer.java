@@ -1,23 +1,12 @@
 package com.xapc.client.render;
 
 import com.xapc.utils.WeaponsAbstractClass;
-import com.zigythebird.playeranim.animation.PlayerAnimationController;
-import com.zigythebird.playeranim.api.PlayerAnimationAccess;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.Avatar;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemDisplayContext;
 import com.geckolib.renderer.GeoItemRenderer;
 import com.geckolib.renderer.base.GeoRenderState;
 import com.geckolib.renderer.base.RenderPassInfo;
 import com.geckolib.renderer.base.BoneSnapshots;
 import com.geckolib.constant.DataTickets;
-import com.geckolib.animation.AnimationController;
-import net.minecraft.world.item.ItemStack;
-
-import static com.xapc.client.XapcClient.BASE_LAYER_ID;
-import static net.minecraft.resources.Identifier.fromNamespaceAndPath;
 
 public class GenericWeaponRenderer extends GeoItemRenderer<WeaponsAbstractClass> {
     public GenericWeaponRenderer(WeaponsAbstractClass item) {
