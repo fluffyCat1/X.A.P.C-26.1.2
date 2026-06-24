@@ -9,13 +9,33 @@ public class snootgun4 extends WeaponsAbstractClass {
     }
 
     @Override
+    public int equipAnimationDurationTick() {
+        return 15;
+    }
+
+    @Override
     public int getMaxAmmo() {
         return 2;
     }
 
     @Override
     public float getDamage() {
-        return 12;
+        return 12.5F;
+    }
+
+    @Override
+    public int reloadDelay() {
+        return 17;
+    }
+
+    @Override
+    public int shootAnimationDurationTick() {
+        return 10;
+    }
+
+    @Override
+    public int reloadAnimationDurationTick() {
+        return 38;
     }
 
     @Override

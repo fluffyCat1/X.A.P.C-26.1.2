@@ -21,9 +21,6 @@ public class GenericAnimations {
         ItemStack mainHandStack = clientPlayer.getItemBySlot(EquipmentSlot.MAINHAND);
         PlayerAnimationController controller = (PlayerAnimationController) PlayerAnimationAccess.getPlayerAnimationLayer(
                 player, BASE_LAYER_ID);
-        // Получаем слой анимации PAL игрока
-        var layer = PlayerAnimationAccess.getPlayerAnimationLayer(clientPlayer, BASE_LAYER_ID);
-
 
             // Если игрок держит ЛЮБОЕ оружие нашего мода
             if (mainHandStack.getItem() instanceof WeaponsAbstractClass weapon) {
@@ -34,8 +31,11 @@ public class GenericAnimations {
                     return;
                 }
 
-                // 2. Приоритет: выстрел (отслеживаем замах руки от левого клика)
-                if (clientPlayer.swinging && clientPlayer.swingTime == 0) {
+                net.minecraft.world.item.component.CustomData customData = mainHandStack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+                int shootTicks = customData != null ? customData.copyTag().getInt("ShootAnimTicks").orElse(0) : 0;
+
+                // 2. Приоритет: выстрел (работает, пока тикает таймер)
+                if (shootTicks > 0) {
                     controller.triggerAnimation(weapon.getShootAnimationId());
                     return;
                 }

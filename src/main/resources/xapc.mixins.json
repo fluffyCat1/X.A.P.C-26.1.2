@@ -6,6 +6,7 @@
       "JumpRemoveInertia",
       "SpeedTrackerMixin",
       "NoHurtDelayMixin",
+      "MinecraftMixin",
       "SprintRemove",
       "JumpDelayMixin"
 	],
