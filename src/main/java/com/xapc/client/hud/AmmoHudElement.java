@@ -1,5 +1,6 @@
 package com.xapc.client.hud;
 
+import com.xapc.client.ClientAmmoStorage;
 import com.xapc.utils.WeaponsAbstractClass;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -18,7 +19,7 @@ public class AmmoHudElement implements HudElement {
 
         if (!(stack.getItem() instanceof WeaponsAbstractClass weapon)) return;
 
-        int ammo = WeaponsAbstractClass.ammoMap.getOrDefault(mc.player.getUUID(), weapon.getMaxAmmo());
+        int ammo = ClientAmmoStorage.get(mc.player.getUUID(), weapon.getMaxAmmo());
         String text = ammo + " / " + weapon.getMaxAmmo();
 
         int textWidth = mc.font.width(text);

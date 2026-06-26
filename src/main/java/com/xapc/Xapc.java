@@ -3,6 +3,8 @@ package com.xapc;
 import com.geckolib.animatable.GeoItem;
 import com.xapc.item.ItemRegistry;
 import com.xapc.net.NetWorking;
+import com.xapc.net.Package.AmmoSyncPacket;
+import com.xapc.net.Package.AnimTriggerPacket;
 import com.xapc.net.Package.ShootPacket;
 import com.xapc.utils.WeaponsAbstractClass;
 import net.fabricmc.api.ModInitializer;
@@ -15,8 +17,7 @@ import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static com.xapc.utils.WeaponsAbstractClass.reloadTicksMap;
-import static com.xapc.utils.WeaponsAbstractClass.shootTicksMap;
+import static com.xapc.utils.WeaponsAbstractClass.*;
 
 public class Xapc implements ModInitializer {
     public static final String MOD_ID = "xapc";
@@ -35,6 +36,9 @@ public class Xapc implements ModInitializer {
         LOGGER.info("Hello Fabric world!");
         ItemRegistry.initialize();
         ShootPacket.register();
+        PayloadTypeRegistry.clientboundPlay().register(AmmoSyncPacket.TYPE, AmmoSyncPacket.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(AnimTriggerPacket.TYPE, AnimTriggerPacket.CODEC);
+
 
         ServerPlayNetworking.registerGlobalReceiver(ShootPacket.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
@@ -54,11 +58,11 @@ public class Xapc implements ModInitializer {
 
                 // прерываем перезарядку
                 reloadTicksMap.put(player.getUUID(), 0);
-                weapon.stopTriggeredAnim(player, animId, "base_controller", "reload");
+                stopAnimForPlayer(player, animId, "base_controller", "reload");
 
                 // стреляем
                 WeaponsAbstractClass.setAmmo(player.getUUID(), ammo - 1);
-                weapon.triggerAnim(player, animId, "base_controller", "shoot");
+                triggerAnimForPlayer(player, animId, "base_controller", "shoot");
                 shootTicksMap.put(player.getUUID(), weapon.shootAnimationDurationTick());
             });
         });
