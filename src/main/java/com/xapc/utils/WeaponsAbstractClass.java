@@ -132,7 +132,7 @@ public abstract class WeaponsAbstractClass extends Item implements GeoItem {
             }
         });
     }
-
+//
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>("base_controller", 3, state -> {
