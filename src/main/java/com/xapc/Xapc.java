@@ -5,6 +5,7 @@ import com.xapc.item.ItemRegistry;
 import com.xapc.net.NetWorking;
 import com.xapc.net.Package.AmmoSyncPacket;
 import com.xapc.net.Package.AnimTriggerPacket;
+import com.xapc.net.Package.PlayerAnimBroadcastPacket;
 import com.xapc.net.Package.ShootPacket;
 import com.xapc.utils.WeaponsAbstractClass;
 import net.fabricmc.api.ModInitializer;
@@ -38,6 +39,7 @@ public class Xapc implements ModInitializer {
         ShootPacket.register();
         PayloadTypeRegistry.clientboundPlay().register(AmmoSyncPacket.TYPE, AmmoSyncPacket.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(AnimTriggerPacket.TYPE, AnimTriggerPacket.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(PlayerAnimBroadcastPacket.TYPE, PlayerAnimBroadcastPacket.CODEC);
 
 
         ServerPlayNetworking.registerGlobalReceiver(ShootPacket.TYPE, (payload, context) -> {
@@ -54,15 +56,16 @@ public class Xapc implements ModInitializer {
                 if (ammo <= 0) return;
 
                 ServerLevel level = (ServerLevel) player.level();
-                long animId = GeoItem.getOrAssignId(stack, level);
+                long animId = WeaponsAbstractClass.instanceIdFor(player.getUUID());
 
-                // прерываем перезарядку
                 reloadTicksMap.put(player.getUUID(), 0);
-                stopAnimForPlayer(player, animId, "base_controller", "reload");
+                stopAnimForPlayer(player, animId, "base_controller", "reload");                    // локально
+                broadcastStopAnimTrigger(player, animId, "third_person_controller", "reload_3rd"); // всем
 
-                // стреляем
                 WeaponsAbstractClass.setAmmo(player.getUUID(), ammo - 1);
-                triggerAnimForPlayer(player, animId, "base_controller", "shoot");
+                triggerAnimForPlayer(player, animId, "base_controller", "shoot");           // локально
+                broadcastAnimTrigger(player, animId, "third_person_controller", "shoot_3rd");   // всем
+                broadcastPlayerAnim(player, weapon.getShootAnimationId());
                 shootTicksMap.put(player.getUUID(), weapon.shootAnimationDurationTick());
             });
         });

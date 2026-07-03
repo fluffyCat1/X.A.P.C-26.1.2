@@ -3,14 +3,20 @@ package com.xapc.weapons;
 import com.xapc.utils.WeaponsAbstractClass;
 
 public class snootgun4 extends WeaponsAbstractClass {
+    private static final java.util.Random EQUIP_RANDOM = new java.util.Random();
 
     public snootgun4(Properties properties) {
         super(properties);
     }
 
     @Override
+    protected String chooseEquipAnimKey() {
+        return EQUIP_RANDOM.nextInt(100) < 90 ? "equip" : "equip2";
+    }
+
+    @Override
     public int equipAnimationDurationTick() {
-        return 15;
+        return 17;
     }
 
     @Override
@@ -25,17 +31,17 @@ public class snootgun4 extends WeaponsAbstractClass {
 
     @Override
     public int reloadDelay() {
-        return 17;
+        return 15;
     }
 
     @Override
     public int shootAnimationDurationTick() {
-        return 10;
+        return 13;
     }
 
     @Override
     public int reloadAnimationDurationTick() {
-        return 38;
+        return 40;
     }
 
     @Override
@@ -51,5 +57,10 @@ public class snootgun4 extends WeaponsAbstractClass {
     @Override
     public net.minecraft.resources.Identifier getReloadAnimationId() {
         return net.minecraft.resources.Identifier.fromNamespaceAndPath("xapc", "reload");
+    }
+
+    @Override
+    public net.minecraft.resources.Identifier getEquipAnimationId() {
+        return net.minecraft.resources.Identifier.fromNamespaceAndPath("xapc", "equip");
     }
 }

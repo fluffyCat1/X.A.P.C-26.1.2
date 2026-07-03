@@ -19,9 +19,12 @@ import com.google.common.base.Suppliers;
 import com.xapc.client.render.GenericWeaponRenderer;
 import com.xapc.net.Package.AmmoSyncPacket;
 import com.xapc.net.Package.AnimTriggerPacket;
+import com.xapc.net.Package.PlayerAnimBroadcastPacket;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -32,10 +35,12 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.UUID;
 import java.util.function.Consumer;
 
 import static java.lang.IO.print;
@@ -51,18 +56,33 @@ public abstract class WeaponsAbstractClass extends Item implements GeoItem {
     public static final java.util.Map<java.util.UUID, Integer> equipTicksMap = new java.util.HashMap<>();
 
     public static final RawAnimation EQUIP = RawAnimation.begin().thenPlay("equip");
+    public static final RawAnimation EQUIP_ALT = RawAnimation.begin().thenPlay("equip2"); // новая
     public static final RawAnimation IDLE_FPS = RawAnimation.begin().thenLoop("idle");
     public static final RawAnimation IDLE_3RD = RawAnimation.begin().thenLoop("idle_3rd");
     public static final RawAnimation SHOOT = RawAnimation.begin()
             .thenPlay("shoot");
+    public static final RawAnimation SHOOT_3RD = RawAnimation.begin()
+            .thenPlay("shoot_3rd");
     public static final RawAnimation RELOAD = RawAnimation.begin().thenPlay("reload");
     public static final RawAnimation RELOAD_3RD = RawAnimation.begin().thenPlay("reload_3rd");
-    public static final RawAnimation RUN_FPS = RawAnimation.begin().thenLoop("run");
 
     public WeaponsAbstractClass(Properties properties) {
         super(properties);
 
         SingletonGeoAnimatable.registerSyncedAnimatable(this);
+    }
+
+    public static long instanceIdFor(java.util.UUID uuid) {
+        return uuid.getMostSignificantBits() ^ uuid.getLeastSignificantBits();
+    }
+
+    private static void tagOwner(ItemStack stack, java.util.UUID uuid) {
+        var tag = stack.getOrDefault(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
+                net.minecraft.world.item.component.CustomData.EMPTY).copyTag();
+        tag.putLong("xapc_owner_msb", uuid.getMostSignificantBits());
+        tag.putLong("xapc_owner_lsb", uuid.getLeastSignificantBits());
+        stack.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
+                net.minecraft.world.item.component.CustomData.of(tag));
     }
 
     public static int getAmmo(java.util.UUID uuid, int maxAmmo) {
@@ -73,12 +93,28 @@ public abstract class WeaponsAbstractClass extends Item implements GeoItem {
         ammoMap.put(uuid, ammo);
     }
 
+    // ЛОКАЛЬНО — только самому игроку
     public static void triggerAnimForPlayer(ServerPlayer player, long instanceId, String controller, String anim) {
-        ServerPlayNetworking.send(player, new AnimTriggerPacket(instanceId, controller, anim, false));
+        ServerPlayNetworking.send(player, new AnimTriggerPacket(player.getUUID(), instanceId, controller, anim, false));
     }
 
     public static void stopAnimForPlayer(ServerPlayer player, long instanceId, String controller, String anim) {
-        ServerPlayNetworking.send(player, new AnimTriggerPacket(instanceId, controller, anim, true));
+        ServerPlayNetworking.send(player, new AnimTriggerPacket(player.getUUID(), instanceId, controller, anim, true));
+    }
+
+    // ВСЕМ — третье лицо
+    public static void broadcastAnimTrigger(ServerPlayer player, long instanceId, String controller, String anim) {
+        AnimTriggerPacket packet = new AnimTriggerPacket(player.getUUID(), instanceId, controller, anim, false);
+        player.level().getServer().getPlayerList().getPlayers().forEach(p -> ServerPlayNetworking.send(p, packet));
+    }
+
+    public static void broadcastStopAnimTrigger(ServerPlayer player, long instanceId, String controller, String anim) {
+        AnimTriggerPacket packet = new AnimTriggerPacket(player.getUUID(), instanceId, controller, anim, true);
+        player.level().getServer().getPlayerList().getPlayers().forEach(p -> ServerPlayNetworking.send(p, packet));
+    }
+
+    protected String chooseEquipAnimKey() {
+        return "equip";
     }
 
     @Override
@@ -111,21 +147,39 @@ public abstract class WeaponsAbstractClass extends Item implements GeoItem {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) return PlayState.STOP;
 
-            if ((state.isCurrentAnimation(SHOOT) || state.isCurrentAnimation(RELOAD) || state.isCurrentAnimation(EQUIP))
+            if ((state.isCurrentAnimation(SHOOT)
+                    || state.isCurrentAnimation(RELOAD)
+                    || state.isCurrentAnimation(EQUIP)
+                    || state.isCurrentAnimation(EQUIP_ALT)) // <-- добавили
                     && !state.controller().hasAnimationFinished()) {
                 return PlayState.CONTINUE;
             }
 
-            boolean isMoving = mc.player.getDeltaMovement().horizontalDistanceSqr() > 0.001;
-            return state.setAndContinue(isMoving ? RUN_FPS : IDLE_FPS);
+            return state.setAndContinue(IDLE_FPS);
                 }).receiveTriggeredAnimations()
                         .triggerableAnim("shoot", SHOOT)
                         .triggerableAnim("reload", RELOAD)
-                        .triggerableAnim("reload_3rd", RELOAD_3RD)
-                        .triggerableAnim("idle_3rd", IDLE_3RD)
                         .triggerableAnim("idle", IDLE_FPS)
-                        .triggerableAnim("run", RUN_FPS)
                         .triggerableAnim("equip", EQUIP)
+                        .triggerableAnim("equip2", EQUIP_ALT)
+        );
+        controllers.add(new AnimationController<>("third_person_controller", 3, state -> {
+                    final ItemDisplayContext context = state.getData(DataTickets.ITEM_RENDER_PERSPECTIVE);
+
+                    if (context != ItemDisplayContext.THIRD_PERSON_RIGHT_HAND
+                            && context != ItemDisplayContext.THIRD_PERSON_LEFT_HAND) {
+                        return PlayState.STOP;
+                    }
+
+                    if ((state.isCurrentAnimation(SHOOT) || state.isCurrentAnimation(RELOAD_3RD) || state.isCurrentAnimation(EQUIP))
+                            && !state.controller().hasAnimationFinished()) {
+                        return PlayState.CONTINUE;
+                    }
+
+                    return state.setAndContinue(IDLE_3RD);
+                }).receiveTriggeredAnimations()
+                        .triggerableAnim("shoot_3rd", SHOOT_3RD)
+                        .triggerableAnim("reload_3rd", RELOAD_3RD)
         );
     }
 
@@ -138,8 +192,10 @@ public abstract class WeaponsAbstractClass extends Item implements GeoItem {
     @Override
     public void inventoryTick(ItemStack itemStack, ServerLevel level, Entity owner, @Nullable EquipmentSlot slot) {
         if (!level.isClientSide() && owner instanceof ServerPlayer player) {
-            long animId = GeoItem.getOrAssignId(itemStack, level);
-            java.util.UUID uuid = player.getUUID();
+            java.util.UUID uuid = player.getUUID();   // <-- переносим сюда, ДО использования
+
+            long animId = instanceIdFor(uuid);
+            tagOwner(itemStack, uuid);
 
             // декремент счётчика выстрела
             int shootTicks = shootTicksMap.getOrDefault(uuid, 0);
@@ -165,7 +221,10 @@ public abstract class WeaponsAbstractClass extends Item implements GeoItem {
                 boolean isReloading = reloadTicksMap.getOrDefault(uuid, 0) > 0;
 
                 if (!hadWeapon) {
-                    triggerAnimForPlayer(player, animId, "base_controller", "equip");
+                    String equipKey = chooseEquipAnimKey();
+                    triggerAnimForPlayer(player, animId, "base_controller", equipKey);          // локально
+                    broadcastAnimTrigger(player, animId, "third_person_controller", "equip");   // всем
+                    broadcastPlayerAnim(player, getEquipAnimationId());
                     equipTicksMap.put(uuid, equipAnimationDurationTick());
                     reloadDelayMap.put(uuid, reloadDelay());
                 }
@@ -190,7 +249,9 @@ public abstract class WeaponsAbstractClass extends Item implements GeoItem {
 
                 if (!isShooting && !isReloading && delayPassed && ammo < getMaxAmmo()) {
                     reloadTicksMap.put(uuid, reloadAnimationDurationTick());
-                    triggerAnimForPlayer(player, animId, "base_controller", "reload");
+                    triggerAnimForPlayer(player, animId, "base_controller", "reload");                 // локально
+                    broadcastAnimTrigger(player, animId, "third_person_controller", "reload_3rd");     // всем
+                    broadcastPlayerAnim(player, getReloadAnimationId());
                 }
             } else {
                 // Вот сюда — снаружи первого if
@@ -198,6 +259,14 @@ public abstract class WeaponsAbstractClass extends Item implements GeoItem {
             }
         }
         super.inventoryTick(itemStack, level, owner, slot);
+    }
+
+    public static void broadcastPlayerAnim(ServerPlayer player, Identifier animId) {
+        PlayerAnimBroadcastPacket packet = new PlayerAnimBroadcastPacket(player.getUUID(), animId);
+        // Отправляем всем включая себя
+        player.level().getServer().getPlayerList().getPlayers().forEach(p -> {
+            ServerPlayNetworking.send(p, packet);
+        });
     }
 
     private static void sendAmmoSync(ServerPlayer player, ItemStack stack, ServerLevel level, int ammo) {
@@ -219,6 +288,7 @@ public abstract class WeaponsAbstractClass extends Item implements GeoItem {
     public abstract int getMaxAmmo();
     public abstract float getDamage();
     public abstract int shootAnimationDurationTick();
+    public abstract net.minecraft.resources.Identifier getEquipAnimationId();
     public abstract int reloadAnimationDurationTick();
 
     public abstract net.minecraft.resources.Identifier getIdleAnimationId();
