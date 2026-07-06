@@ -1,6 +1,5 @@
 package com.xapc.utils;
 
-import com.geckolib.animatable.GeoAnimatable;
 import com.geckolib.animatable.GeoItem;
 import com.geckolib.animatable.SingletonGeoAnimatable;
 import com.geckolib.animatable.client.GeoRenderProvider;
@@ -10,9 +9,7 @@ import com.geckolib.animation.AnimationController;
 import com.geckolib.animation.RawAnimation;
 import com.geckolib.animation.object.PlayState;
 import com.geckolib.constant.DataTickets;
-import com.geckolib.constant.DefaultAnimations;
 import com.geckolib.renderer.GeoItemRenderer;
-import com.geckolib.util.ClientUtil;
 import com.geckolib.util.GeckoLibUtil;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -22,11 +19,10 @@ import com.xapc.net.Package.AnimTriggerPacket;
 import com.xapc.net.Package.PlayerAnimBroadcastPacket;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
@@ -35,23 +31,21 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
 import java.util.function.Consumer;
 
-import static java.lang.IO.print;
 import static java.lang.IO.println;
 
 public abstract class WeaponsAbstractClass extends Item implements GeoItem {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
-    public static final java.util.Map<java.util.UUID, Integer> reloadTicksMap = new java.util.HashMap<>();
-    public static final java.util.Map<java.util.UUID, Integer> ammoMap = new java.util.HashMap<>();
-    public static final java.util.Map<java.util.UUID, Integer> shootTicksMap = new java.util.HashMap<>();
-    public static final java.util.Map<java.util.UUID, Integer> reloadDelayMap = new java.util.HashMap<>();
+    public static final java.util.Map<WeaponKey, Integer> reloadTicksMap = new java.util.HashMap<>();
+    public static final java.util.Map<WeaponKey, Integer> ammoMap = new java.util.HashMap<>();
+    public static final java.util.Map<WeaponKey, Integer> shootTicksMap = new java.util.HashMap<>();
+    public static final java.util.Map<WeaponKey, Integer> reloadDelayMap = new java.util.HashMap<>();
+    // hadWeaponLastTick и equipTicksMap оставляем как есть, по UUID
     public static final java.util.Map<java.util.UUID, Boolean> hadWeaponLastTick = new java.util.HashMap<>();
     public static final java.util.Map<java.util.UUID, Integer> equipTicksMap = new java.util.HashMap<>();
 
@@ -66,10 +60,26 @@ public abstract class WeaponsAbstractClass extends Item implements GeoItem {
     public static final RawAnimation RELOAD = RawAnimation.begin().thenPlay("reload");
     public static final RawAnimation RELOAD_3RD = RawAnimation.begin().thenPlay("reload_3rd");
 
+    public abstract SoundEvent getShootSound();
+    public abstract SoundEvent getReloadSound();
+//    public abstract SoundEvent getEquipSound();
+
+    public float getShootVolume()  { return 0.75F; }
+    public float getShootPitch()   { return 1F; }
+    public float getReloadVolume() { return 0.75F; }
+    public float getReloadPitch()  { return 1F; }
+//    public float getEquipVolume()  { return 1.0F; }
+//    public float getEquipPitch()   { return 1.0F; }
+
     public WeaponsAbstractClass(Properties properties) {
         super(properties);
 
         SingletonGeoAnimatable.registerSyncedAnimatable(this);
+    }
+
+    public static void playWeaponSound(ServerPlayer player, SoundEvent sound, float volume, float pitch) {
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                sound, net.minecraft.sounds.SoundSource.PLAYERS, volume, pitch);
     }
 
     public static long instanceIdFor(java.util.UUID uuid) {
@@ -85,14 +95,13 @@ public abstract class WeaponsAbstractClass extends Item implements GeoItem {
                 net.minecraft.world.item.component.CustomData.of(tag));
     }
 
-    public static int getAmmo(java.util.UUID uuid, int maxAmmo) {
-        return ammoMap.getOrDefault(uuid, maxAmmo);
+    public static int getAmmo(WeaponKey key, int maxAmmo) {
+        return ammoMap.getOrDefault(key, maxAmmo);
     }
 
-    public static void setAmmo(java.util.UUID uuid, int ammo) {
-        ammoMap.put(uuid, ammo);
+    public static void setAmmo(WeaponKey key, int ammo) {
+        ammoMap.put(key, ammo);
     }
-
     // ЛОКАЛЬНО — только самому игроку
     public static void triggerAnimForPlayer(ServerPlayer player, long instanceId, String controller, String anim) {
         ServerPlayNetworking.send(player, new AnimTriggerPacket(player.getUUID(), instanceId, controller, anim, false));
@@ -135,7 +144,7 @@ public abstract class WeaponsAbstractClass extends Item implements GeoItem {
 //
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>("base_controller", 3, state -> {
+        controllers.add(new AnimationController<>("base_controller", 1, state -> {
 
             final ItemDisplayContext context = state.getData(DataTickets.ITEM_RENDER_PERSPECTIVE);
 
@@ -192,41 +201,39 @@ public abstract class WeaponsAbstractClass extends Item implements GeoItem {
     @Override
     public void inventoryTick(ItemStack itemStack, ServerLevel level, Entity owner, @Nullable EquipmentSlot slot) {
         if (!level.isClientSide() && owner instanceof ServerPlayer player) {
-            java.util.UUID uuid = player.getUUID();   // <-- переносим сюда, ДО использования
-
+            UUID uuid = player.getUUID();
+            WeaponKey key = WeaponKey.of(player, itemStack); // <-- новый составной ключ
             long animId = instanceIdFor(uuid);
             tagOwner(itemStack, uuid);
 
-            // декремент счётчика выстрела
-            int shootTicks = shootTicksMap.getOrDefault(uuid, 0);
-            if (shootTicks > 0) {
-                shootTicksMap.put(uuid, shootTicks - 1);
-            }
-
-            // декремент счётчика перезарядки
-            int reloadTicks = reloadTicksMap.getOrDefault(uuid, 0);
-            if (reloadTicks > 0) {
-                reloadTicksMap.put(uuid, reloadTicks - 1); // <- декремент
-                if (reloadTicks == 1) {
-                    setAmmo(uuid, getMaxAmmo());
-                    sendAmmoSync(player, itemStack, level, getMaxAmmo());
-                }
-            }
-            sendAmmoSync(player, itemStack, level, getAmmo(uuid, getMaxAmmo()));
-
             if (slot == EquipmentSlot.MAINHAND) {
+                int shootTicks = shootTicksMap.getOrDefault(key, 0);
+                if (shootTicks > 0) {
+                    shootTicksMap.put(key, shootTicks - 1);
+                }
+
+                int reloadTicks = reloadTicksMap.getOrDefault(key, 0);
+                if (reloadTicks > 0) {
+                    reloadTicksMap.put(key, reloadTicks - 1);
+                    if (reloadTicks == 1) {
+                        setAmmo(key, getMaxAmmo());
+                        sendAmmoSync(player, itemStack, level, getMaxAmmo());
+                    }
+                }
+                sendAmmoSync(player, itemStack, level, getAmmo(key, getMaxAmmo()));
+
                 boolean hadWeapon = hadWeaponLastTick.getOrDefault(uuid, false);
-                int ammo = getAmmo(uuid, getMaxAmmo());
-                boolean isShooting = shootTicksMap.getOrDefault(uuid, 0) > 0;
-                boolean isReloading = reloadTicksMap.getOrDefault(uuid, 0) > 0;
+                int ammo = getAmmo(key, getMaxAmmo());
+                boolean isShooting = shootTicksMap.getOrDefault(key, 0) > 0;
+                boolean isReloading = reloadTicksMap.getOrDefault(key, 0) > 0;
 
                 if (!hadWeapon) {
                     String equipKey = chooseEquipAnimKey();
-                    triggerAnimForPlayer(player, animId, "base_controller", equipKey);          // локально
-                    broadcastAnimTrigger(player, animId, "third_person_controller", "equip");   // всем
+                    triggerAnimForPlayer(player, animId, "base_controller", equipKey);
+                    broadcastAnimTrigger(player, animId, "third_person_controller", "equip");
                     broadcastPlayerAnim(player, getEquipAnimationId());
                     equipTicksMap.put(uuid, equipAnimationDurationTick());
-                    reloadDelayMap.put(uuid, reloadDelay());
+                    reloadDelayMap.put(key, reloadDelay());
                 }
 
                 int equipTicks = equipTicksMap.getOrDefault(uuid, 0);
@@ -237,24 +244,30 @@ public abstract class WeaponsAbstractClass extends Item implements GeoItem {
                 hadWeaponLastTick.put(uuid, true);
 
                 if (isShooting) {
-                    reloadDelayMap.put(uuid, reloadDelay());
+                    reloadDelayMap.put(key, reloadDelay());
                 }
 
-                int reloadDelay = reloadDelayMap.getOrDefault(uuid, 0);
+                int reloadDelay = reloadDelayMap.getOrDefault(key, 0);
                 if (reloadDelay > 0) {
-                    reloadDelayMap.put(uuid, reloadDelay - 1);
+                    reloadDelayMap.put(key, reloadDelay - 1);
                 }
 
-                boolean delayPassed = reloadDelayMap.getOrDefault(uuid, 0) == 0;
+                boolean delayPassed = reloadDelayMap.getOrDefault(key, 0) == 0;
 
                 if (!isShooting && !isReloading && delayPassed && ammo < getMaxAmmo()) {
-                    reloadTicksMap.put(uuid, reloadAnimationDurationTick());
-                    triggerAnimForPlayer(player, animId, "base_controller", "reload");                 // локально
-                    broadcastAnimTrigger(player, animId, "third_person_controller", "reload_3rd");     // всем
+                    reloadTicksMap.put(key, reloadAnimationDurationTick());
+                    triggerAnimForPlayer(player, animId, "base_controller", "reload");
+                    broadcastAnimTrigger(player, animId, "third_person_controller", "reload_3rd");
                     broadcastPlayerAnim(player, getReloadAnimationId());
+
+                    playWeaponSound(player, getReloadSound(), getReloadVolume(), getReloadPitch());
                 }
             } else {
-                // Вот сюда — снаружи первого if
+                if (reloadTicksMap.getOrDefault(key, 0) > 0) {
+                    reloadTicksMap.put(key, 0);
+                    stopAnimForPlayer(player, animId, "base_controller", "reload");
+                    broadcastStopAnimTrigger(player, animId, "third_person_controller", "reload_3rd");
+                }
                 hadWeaponLastTick.put(uuid, false);
             }
         }

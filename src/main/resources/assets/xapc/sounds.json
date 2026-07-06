@@ -1,0 +1,8 @@
+{
+  "shootgun4_shoot": {
+    "sounds": ["xapc:weapons/shootgun4_shoot"]
+  },
+  "shootgun4_reload": {
+    "sounds": ["xapc:weapons/shootgun4_reload"]
+  }
+}

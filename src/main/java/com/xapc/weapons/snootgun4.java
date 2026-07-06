@@ -1,6 +1,8 @@
 package com.xapc.weapons;
 
+import com.xapc.sound.ModSounds;
 import com.xapc.utils.WeaponsAbstractClass;
+import net.minecraft.sounds.SoundEvent;
 
 public class snootgun4 extends WeaponsAbstractClass {
     private static final java.util.Random EQUIP_RANDOM = new java.util.Random();
@@ -62,5 +64,15 @@ public class snootgun4 extends WeaponsAbstractClass {
     @Override
     public net.minecraft.resources.Identifier getEquipAnimationId() {
         return net.minecraft.resources.Identifier.fromNamespaceAndPath("xapc", "equip");
+    }
+
+    @Override
+    public SoundEvent getShootSound() {
+        return ModSounds.SHOOTGUN4_SHOOT;
+    }
+
+    @Override
+    public SoundEvent getReloadSound() {
+        return ModSounds.SHOOTGUN4_RELOAD;
     }
 }
