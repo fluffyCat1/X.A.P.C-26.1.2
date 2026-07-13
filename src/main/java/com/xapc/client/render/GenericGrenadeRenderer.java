@@ -6,6 +6,7 @@ import com.geckolib.renderer.base.BoneSnapshots;
 import com.geckolib.renderer.base.GeoRenderState;
 import com.geckolib.renderer.base.RenderPassInfo;
 import com.geckolib.renderer.layer.builtin.CustomBoneTextureGeoLayer;
+import com.xapc.utils.GrenadesAbstractClass;
 import com.xapc.utils.WeaponsAbstractClass;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -16,15 +17,15 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 
-public class GenericWeaponRenderer extends GeoItemRenderer<WeaponsAbstractClass> {
-    public GenericWeaponRenderer(WeaponsAbstractClass item) {
+public class GenericGrenadeRenderer extends GeoItemRenderer<GrenadesAbstractClass> {
+    public GenericGrenadeRenderer(GrenadesAbstractClass item) {
         super(item);
         withRenderLayer(skinHandLayer("right_hand"));
         withRenderLayer(skinHandLayer("left_hand"));
     }
 
     @Override
-    public long getInstanceId(WeaponsAbstractClass animatable, RenderData renderData) {
+    public long getInstanceId(GrenadesAbstractClass animatable, RenderData renderData) {
         ItemStack stack = renderData.itemStack();
         var tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
 
@@ -32,7 +33,7 @@ public class GenericWeaponRenderer extends GeoItemRenderer<WeaponsAbstractClass>
             long msb = tag.getLong("xapc_owner_msb").orElse(0L);
             long lsb = tag.getLong("xapc_owner_lsb").orElse(0L);
             java.util.UUID ownerUuid = new java.util.UUID(msb, lsb);
-            return WeaponsAbstractClass.instanceIdFor(ownerUuid);
+            return GrenadesAbstractClass.instanceIdFor(ownerUuid);
         }
 
         // Тег ещё не досинхронизировался с сервера (первый тик после захода в мир) —
@@ -41,7 +42,7 @@ public class GenericWeaponRenderer extends GeoItemRenderer<WeaponsAbstractClass>
         // с тем, что станет актуальным после синка тега.
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) {
-            return WeaponsAbstractClass.instanceIdFor(mc.player.getUUID());
+            return GrenadesAbstractClass.instanceIdFor(mc.player.getUUID());
         }
 
         return super.getInstanceId(animatable, renderData);
@@ -70,7 +71,7 @@ public class GenericWeaponRenderer extends GeoItemRenderer<WeaponsAbstractClass>
         });
     }
 
-    private CustomBoneTextureGeoLayer<WeaponsAbstractClass, GeoItemRenderer.RenderData, GeoRenderState> skinHandLayer(String boneName) {
+    private CustomBoneTextureGeoLayer<GrenadesAbstractClass, GeoItemRenderer.RenderData, GeoRenderState> skinHandLayer(String boneName) {
         return new CustomBoneTextureGeoLayer<>(this, boneName, DefaultPlayerSkin.getDefaultSkin().body().texturePath()) {
             @Override
             protected Identifier getTextureResource(GeoRenderState renderState) {

@@ -1,0 +1,9 @@
+{
+  "model": {
+    "type": "minecraft:special",
+    "base": "xapc:item/granade",
+    "model": {
+      "type": "geckolib:geckolib"
+    }
+  }
+}

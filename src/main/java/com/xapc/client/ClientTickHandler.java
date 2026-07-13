@@ -15,6 +15,10 @@ public final class ClientTickHandler {
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            ClientShootCooldown.tick(); // добавить эту строку
+            ClientGrenadeCooldown.tick();
+            ClientEquipLock.tick();
+
             if (client.level != null) {
                 for (Player player : client.level.players()) {
                     GenericAnimations.clientPlayerTick(player);

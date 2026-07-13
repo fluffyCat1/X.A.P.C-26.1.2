@@ -18,6 +18,8 @@
   ],
     "client": [
       "client.SprintRemove",
+      "client.GameRendererMixin",
+      "client.MinecraftReleaseUseMixin",
       "client.OptionsMixin",
       "client.KeyMappingMixin"
     ],

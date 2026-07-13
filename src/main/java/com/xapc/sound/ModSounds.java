@@ -10,6 +10,9 @@ public final class ModSounds {
 
     public static final SoundEvent SHOOTGUN4_SHOOT = register("shootgun4_shoot");
     public static final SoundEvent SHOOTGUN4_RELOAD = register("shootgun4_reload");
+    public static final SoundEvent BUTTSTROKE = register("buttstroke");
+    public static final SoundEvent HITSOUND = register("hitsound");
+    public static final SoundEvent HIT_MELEE = register("hit-melee");
     private ModSounds() {}
 
     private static SoundEvent register(String path) {

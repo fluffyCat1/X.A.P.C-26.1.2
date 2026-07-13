@@ -1,11 +1,16 @@
 package com.xapc.net.Package;
 
+import com.xapc.combat.HitscanResult;
+import com.xapc.combat.HitscanSystem;
+import com.xapc.utils.MeleeAttackCapable;
 import com.xapc.utils.WeaponKey;
 import com.xapc.utils.WeaponsAbstractClass;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+
+import java.util.List;
 
 import static com.xapc.utils.WeaponsAbstractClass.*;
 
@@ -22,6 +27,7 @@ public final class ShootPacketHandler {
             WeaponKey key = WeaponKey.of(player, stack);
 
             if (shootTicksMap.getOrDefault(key, 0) > 0) return;
+            if (stack.getItem() instanceof MeleeAttackCapable && meleeTicksMap.getOrDefault(key, 0) > 0) return;
             if (equipTicksMap.getOrDefault(player.getUUID(), 0) > 0) return;
 
             int ammo = getAmmo(key, weapon.getMaxAmmo());
@@ -33,14 +39,22 @@ public final class ShootPacketHandler {
             reloadTicksMap.put(key, 0);
             stopAnimForPlayer(player, animId, "base_controller", "reload");
             broadcastStopAnimTrigger(player, animId, "third_person_controller", "reload_3rd");
+            broadcastReloadSound(player, weapon.getReloadSound(), true, 0, 0); // stop = true
 
             setAmmo(key, ammo - 1);
-            triggerAnimForPlayer(player, animId, "base_controller", "shoot");
             broadcastAnimTrigger(player, animId, "third_person_controller", "shoot_3rd");
             broadcastPlayerAnim(player, weapon.getShootAnimationId());
             shootTicksMap.put(key, weapon.shootAnimationDurationTick());
 
             playWeaponSound(player, weapon.getShootSound(), weapon.getShootVolume(), weapon.getShootPitch());
+
+            // --- урон через хитскан ---
+            List<HitscanResult> hits = HitscanSystem.fire(player, weapon.getHitscanSettings());
+            for (HitscanResult hit : hits) {
+                if (hit.hitSomething()) {
+                    // сюда позже можно добавить: хитмаркер игроку, звук попадания по цели и т.д.
+                }
+            }
         });
     }
 }

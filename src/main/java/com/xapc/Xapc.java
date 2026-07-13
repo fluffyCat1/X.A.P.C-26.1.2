@@ -1,7 +1,9 @@
 package com.xapc;
 
-import com.xapc.item.ItemRegistry;
+import com.xapc.registry.ItemRegistry;
 import com.xapc.net.NetWorking;
+import com.xapc.net.Package.TracerBeamPacket;
+import com.xapc.registry.ModEntities;
 import com.xapc.sound.ModSounds;
 import net.fabricmc.api.ModInitializer;
 
@@ -19,5 +21,7 @@ public class Xapc implements ModInitializer {
         ItemRegistry.initialize();
         NetWorking.register();
         ModSounds.init();
+        TracerBeamPacket.register();
+        ModEntities.init();
     }
 }

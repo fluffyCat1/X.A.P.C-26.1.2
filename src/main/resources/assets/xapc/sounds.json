@@ -4,5 +4,14 @@
   },
   "shootgun4_reload": {
     "sounds": ["xapc:weapons/shootgun4_reload"]
+  },
+  "hit-melee": {
+    "sounds": ["xapc:weapons/hit-melee"]
+  },
+  "hitsound": {
+    "sounds": ["xapc:weapons/hitsound"]
+  },
+  "buttstroke": {
+  "sounds": ["xapc:weapons/buttstroke"]
   }
 }
